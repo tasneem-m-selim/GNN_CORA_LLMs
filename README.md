@@ -15,7 +15,7 @@ To increase task difficulty, Gaussian noise (σ = 0.4) has been applied to the n
 ## 🏆 Leaderboard
 - Leaderboard scores are automatically updated based on accuracy.
 - View the live leaderboard:  
-👉 **[Leaderboard](https://tasneem-mselim.github.io/GNN_CoRA_LLMs/final_leaderboard.html)**
+👉 **[Leaderboard](https://tasneem-mselim.github.io/GNN_CORA_LLMs/))**
 
 ---
 
