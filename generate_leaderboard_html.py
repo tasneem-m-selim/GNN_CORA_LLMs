@@ -113,7 +113,7 @@ html_content += """
 """
 
 # Save HTML
-with open("final_leaderboard.html", "w", encoding="utf-8") as f:
+with open("index.html", "w", encoding="utf-8") as f:
     f.write(html_content)
 
 print("Leaderboard HTML updated successfully.")
