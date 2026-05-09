@@ -7,12 +7,19 @@ on:
       - "submission/*.enc"
       - "submission/*.enc.key"
 
+  push:
+    branches:
+      - main
+    paths:
+      - "final_leaderboard.csv"
+
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
   evaluate:
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
 
     steps:
@@ -50,16 +57,17 @@ jobs:
         with:
           python-version: "3.10"
 
+      # 6 Install dependencies
       - name: Install dependencies
         run: pip install pandas scikit-learn numpy cryptography
 
-      # 6 Copy encrypted submission files
+      # 7 Copy encrypted submission files
       - name: Copy encrypted submission files
         run: |
           cp pr_repo/submission/*.enc main_repo/
           cp pr_repo/submission/*.enc.key main_repo/
 
-      # 7 Create private key file from GitHub Secret
+      # 8 Create private key file from GitHub Secret
       - name: Create private key file
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
@@ -68,46 +76,109 @@ jobs:
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
 
-      # 8 Decrypt submission
+      # 9 Decrypt submission
       - name: Decrypt submission
         run: |
           cd main_repo
           ENC_FILE=$(ls *.enc | tail -n 1)
           KEY_FILE="$ENC_FILE.key"
-          echo "Decrypting $ENC_FILE with key $KEY_FILE"
-          python encryption/decrypt_submission.py "$ENC_FILE" "$KEY_FILE" decrypted_submission.csv private_key.pem
 
-      # 9 Evaluate decrypted submission
+          echo "Decrypting $ENC_FILE with key $KEY_FILE"
+
+          python encryption/decrypt_submission.py \
+            "$ENC_FILE" \
+            "$KEY_FILE" \
+            decrypted_submission.csv \
+            private_key.pem
+
+      # 10 Evaluate decrypted submission
       - name: Evaluate submission
         run: |
           cd main_repo
-          echo "Evaluating decrypted_submission.csv"
-          python evaluate.py decrypted_submission.csv "../private_data/test_labels_only.csv"
 
-      # 10 Generate leaderboard HTML
+          echo "Evaluating decrypted_submission.csv"
+
+          python evaluate.py \
+            decrypted_submission.csv \
+            "../private_data/test_labels_only.csv"
+
+      # 11 Generate leaderboard HTML
       - name: Generate leaderboard HTML
         run: |
           cd main_repo
+
+          echo "Generating index.html from final_leaderboard.csv"
+
           python generate_leaderboard_html.py
 
-      # 11 Commit updated leaderboard to main
+      # 12 Commit updated leaderboard to main
       - name: Push leaderboard to main
         run: |
           cd main_repo
+
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+
           git add final_leaderboard.csv index.html
+
           if ! git diff --cached --quiet; then
             git commit -m "Update leaderboard from PR #${{ github.event.pull_request.number }}"
+
             git pull --rebase origin main
+
             git push origin HEAD:main
           else
             echo "No leaderboard changes to commit"
-          fi  
+          fi
 
-      # 12 Clean up sensitive files
+      # 13 Clean up sensitive files
       - name: Clean up decrypted files
         run: |
           cd main_repo
+
           rm -f decrypted_submission.csv
           rm -f private_key.pem
+
+  regenerate_html:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1 Checkout main branch
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      # 2 Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # 3 Install dependencies
+      - name: Install dependencies
+        run: pip install pandas
+
+      # 4 Regenerate leaderboard HTML
+      - name: Regenerate leaderboard HTML
+        run: |
+          echo "Regenerating index.html from final_leaderboard.csv"
+
+          python generate_leaderboard_html.py
+
+      # 5 Commit updated HTML
+      - name: Commit updated HTML
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git add index.html
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-update leaderboard HTML"
+
+            git pull --rebase origin main
+
+            git push
+          else
+            echo "No HTML changes"
+          fi
