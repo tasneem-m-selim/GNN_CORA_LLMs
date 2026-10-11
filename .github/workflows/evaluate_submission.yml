@@ -32,8 +32,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           path: pr_repo
+          # newly added 
+          persist-credentials: false
+          allow-unsafe-pr-checkout: true
 
       # 3 Checkout MAIN branch (latest leaderboard)
       - name: Checkout main branch
